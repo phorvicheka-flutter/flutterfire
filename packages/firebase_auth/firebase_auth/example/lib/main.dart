@@ -4,7 +4,9 @@
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 
 import 'auth.dart';
 import 'firebase_options.dart';
@@ -13,6 +15,7 @@ import 'profile.dart';
 /// Requires that a Firebase local emulator is running locally.
 /// See https://firebase.flutter.dev/docs/auth/start/#optional-prototype-and-test-with-firebase-local-emulator-suite
 bool shouldUseFirebaseEmulator = false;
+String facebookAuthAppId = '1668977596911004';
 
 late final FirebaseApp app;
 late final FirebaseAuth auth;
@@ -32,6 +35,16 @@ Future<void> main() async {
 
   if (shouldUseFirebaseEmulator) {
     await auth.useAuthEmulator('localhost', 9099);
+  }
+
+  if (kIsWeb || defaultTargetPlatform == TargetPlatform.macOS) {
+    // initialiaze the facebook javascript SDK
+    await FacebookAuth.instance.webAndDesktopInitialize(
+      appId: facebookAuthAppId,
+      cookie: true,
+      xfbml: true,
+      version: 'v15.0',
+    );
   }
 
   runApp(const AuthExampleApp());

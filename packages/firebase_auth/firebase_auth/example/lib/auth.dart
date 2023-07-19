@@ -10,6 +10,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:flutter_signin_button/flutter_signin_button.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -79,9 +80,11 @@ class _AuthGateState extends State<AuthGate> {
   bool isLoading = false;
 
   void setIsLoading() {
-    setState(() {
-      isLoading = !isLoading;
-    });
+    if (mounted) {
+      setState(() {
+        isLoading = !isLoading;
+      });
+    }
   }
 
   late Map<Buttons, OAuthSignIn> authButtons;
@@ -103,11 +106,14 @@ class _AuthGateState extends State<AuthGate> {
       };
     } else {
       authButtons = {
-        Buttons.Apple: () => _handleMultiFactorException(
-              _signInWithApple,
-            ),
         Buttons.Google: () => _handleMultiFactorException(
               _signInWithGoogle,
+            ),
+        Buttons.Facebook: () => _handleMultiFactorException(
+              _signInWithFacebook,
+            ),
+        Buttons.Apple: () => _handleMultiFactorException(
+              _signInWithApple,
             ),
         Buttons.GitHub: () => _handleMultiFactorException(
               _signInWithGitHub,
@@ -539,6 +545,17 @@ class _AuthGateState extends State<AuthGate> {
 
       // Once signed in, return the UserCredential
       await auth.signInWithCredential(credential);
+    }
+  }
+
+  Future<void> _signInWithFacebook() async {
+    final LoginResult result = await FacebookAuth.instance.login();
+    if (result.status == LoginStatus.success) {
+      // Create a credential from the access token
+      final OAuthCredential credential =
+          FacebookAuthProvider.credential(result.accessToken!.token);
+      // Once signed in, return the UserCredential
+      await FirebaseAuth.instance.signInWithCredential(credential);
     }
   }
 
