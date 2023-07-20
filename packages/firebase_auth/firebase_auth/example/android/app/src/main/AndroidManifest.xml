@@ -15,6 +15,21 @@
             android:name="com.facebook.sdk.ClientToken"
             android:value="@string/facebook_client_token"/>
 
+        <!-- Setting for Kakao Login Custom URI Scheme -->
+        <activity
+            android:name="com.kakao.sdk.flutter.AuthCodeCustomTabsActivity"
+            android:exported="true">
+            <intent-filter android:label="flutter_web_auth">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <!-- Setting for "kakao${YOUR_NATIVE_APP_KEY}://oauth" type app execution scheme -->
+                <!-- Kakao Login Redirect URI -->
+                <data android:scheme="kakao3d671d050c4f4b221c4fd5dce31a5dad" android:host="oauth"/>
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

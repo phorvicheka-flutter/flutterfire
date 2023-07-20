@@ -3,11 +3,16 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth_example/profile_kakao.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart'
+    as kakao_flutter_sdk_user;
+import 'package:provider/provider.dart';
 
+import 'app_data_change_notifier.dart';
 import 'auth.dart';
 import 'firebase_options.dart';
 import 'profile.dart';
@@ -19,6 +24,10 @@ String facebookAuthAppId = '1668977596911004';
 
 late final FirebaseApp app;
 late final FirebaseAuth auth;
+
+// Create an alias for the User class from the Kakao Flutter SDK
+typedef KakaoUser = kakao_flutter_sdk_user.User;
+typedef KakaoSdk = kakao_flutter_sdk_user.KakaoSdk;
 
 // Requires that the Firebase Auth emulator is running locally
 // e.g via `melos run firebase:emulator`.
@@ -47,7 +56,17 @@ Future<void> main() async {
     );
   }
 
-  runApp(const AuthExampleApp());
+  KakaoSdk.init(
+    nativeAppKey: '3d671d050c4f4b221c4fd5dce31a5dad',
+    javaScriptAppKey: '659fd5c08365cb80aae07835b4030106',
+  );
+
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => AppDataChangeNotifier(),
+      child: const AuthExampleApp(),
+    ),
+  );
 }
 
 /// The entry point of the application.
@@ -64,6 +83,8 @@ class AuthExampleApp extends StatelessWidget {
       home: Scaffold(
         body: LayoutBuilder(
           builder: (context, constraints) {
+            final isLoginWithKakao =
+                Provider.of<AppDataChangeNotifier>(context).isLoginWithKakao;
             return Row(
               children: [
                 Visibility(
@@ -90,15 +111,17 @@ class AuthExampleApp extends StatelessWidget {
                   width: constraints.maxWidth >= 1200
                       ? constraints.maxWidth / 2
                       : constraints.maxWidth,
-                  child: StreamBuilder<User?>(
-                    stream: auth.authStateChanges(),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData) {
-                        return const ProfilePage();
-                      }
-                      return const AuthGate();
-                    },
-                  ),
+                  child: isLoginWithKakao
+                      ? ProfileKakaoPage()
+                      : StreamBuilder<User?>(
+                          stream: auth.authStateChanges(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              return const ProfilePage();
+                            }
+                            return const AuthGate();
+                          },
+                        ),
                 ),
               ],
             );

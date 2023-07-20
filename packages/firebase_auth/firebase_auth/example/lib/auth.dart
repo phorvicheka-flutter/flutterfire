@@ -5,14 +5,20 @@
 import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth_example/app_data_change_notifier.dart';
 import 'package:firebase_auth_example/main.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:flutter_signin_button/flutter_signin_button.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+import 'package:provider/provider.dart';
+
+import 'kakao_login_button.dart';
 
 typedef OAuthSignIn = void Function();
 
@@ -131,6 +137,89 @@ class _AuthGateState extends State<AuthGate> {
     }
   }
 
+  // @override
+  // void didUpdateWidget(AuthGate oldAuthGateWidget) {
+  //   super.didUpdateWidget(oldAuthGateWidget);
+
+  //   print('Widget updated with new data');
+  // }
+
+  Future<OAuthToken?> _signInWithKakao() async {
+    // Login combination sample + Detailed error handling callback
+    bool talkInstalled = await isKakaoTalkInstalled();
+    // If Kakao Talk has been installed, log in with Kakao Talk. Otherwise, log in with Kakao Account.
+    if (talkInstalled) {
+      try {
+        OAuthToken token = await UserApi.instance.loginWithKakaoTalk();
+        print('Login succeeded. ${token.accessToken}');
+        return token;
+      } catch (e) {
+        print('Login failed. $e');
+
+        // After installing Kakao Talk, if a user does not complete app permission and cancels Login with Kakao Talk, skip to log in with Kakao Account, considering that the user does not want to log in.
+        // You could implement other actions such as going back to the previous page.
+        if (e is PlatformException && e.code == 'CANCELED') {
+          return null;
+        }
+
+        // If a user is not logged into Kakao Talk after installing Kakao Talk and allowing app permission, make the user log in with Kakao Account.
+        try {
+          OAuthToken token = await UserApi.instance.loginWithKakaoAccount();
+          print('Login succeeded. ${token.accessToken}');
+          return token;
+        } catch (e) {
+          print('Login failed. $e');
+          return null;
+        }
+      }
+    } else {
+      try {
+        print('Start Login');
+        OAuthToken token = await UserApi.instance.loginWithKakaoAccount();
+        print('Login succeeded. ${token.accessToken}');
+        return token;
+      } catch (e) {
+        print('Login failed. $e');
+        return null;
+      }
+    }
+  }
+
+  Future<void> retrieveUserInfo() async {
+    // Retrieving user information
+    try {
+      KakaoUser user = await UserApi.instance.me();
+      print('Succeeded in retrieving user information'
+          '\nService user ID: ${user.id}'
+          '\nEmail: ${user.kakaoAccount?.email}'
+          '\nNickname: ${user.kakaoAccount?.profile?.nickname}'
+          '\nProfile Thumbnail Image URI: ${user.kakaoAccount?.profile?.thumbnailImageUrl}');
+      // Update the KakaoUser in AppData
+      Provider.of<AppDataChangeNotifier>(context, listen: false).kakaoUser =
+          user;
+    } catch (e) {
+      print('Failed to retrieve user information');
+    }
+  }
+
+  Future<void> _onKakaoLoginButtonTap() async {
+    setIsLoading();
+    try {
+      OAuthToken? token = await _signInWithKakao();
+      print('token: $token');
+      if (token != null) {
+        await retrieveUserInfo();
+      }
+    } catch (e) {
+      print('Login fails. $e');
+      setState(() {
+        error = '$e';
+      });
+    } finally {
+      setIsLoading();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -237,6 +326,26 @@ class _AuthGateState extends State<AuthGate> {
                           TextButton(
                             onPressed: _resetPassword,
                             child: const Text('Forgot password?'),
+                          ),
+                          // Kakao
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 5),
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: isLoading
+                                  ? Container(
+                                      color: Colors.grey[200],
+                                      height: 50,
+                                      width: double.infinity,
+                                    )
+                                  : SizedBox(
+                                      width: double.infinity,
+                                      height: 50,
+                                      child: KakaoLoginButton(
+                                        onTap: _onKakaoLoginButtonTap,
+                                      ),
+                                    ),
+                            ),
                           ),
                           ...authButtons.keys
                               .map(
