@@ -14,6 +14,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
+import 'package:flutter_naver_login/flutter_naver_login.dart';
 import 'package:flutter_signin_button/flutter_signin_button.dart';
 import 'package:flutter_web_auth/flutter_web_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -29,7 +30,7 @@ typedef OAuthSignIn = void Function();
 // If set to true, the app will request notification permissions to use
 // silent verification for SMS MFA instead of Recaptcha.
 const withSilentVerificationSMSMFA = true;
-const isKakaoSignInWithFirebase = true;
+const isKakaoSignInWithFirebase = false;
 
 /// Helper class to show a snackbar using the passed context.
 class ScaffoldSnackbar {
@@ -194,7 +195,7 @@ class _AuthGateState extends State<AuthGate> {
     // Retrieving user information
     try {
       KakaoUser user = await UserApi.instance.me();
-      print('Succeeded in retrieving user information'
+      print('Succeeded in retrieving Kakao user information'
           '\nService user ID: ${user.id}'
           '\nEmail: ${user.kakaoAccount?.email}'
           '\nNickname: ${user.kakaoAccount?.profile?.nickname}'
@@ -221,6 +222,31 @@ class _AuthGateState extends State<AuthGate> {
       }
     } catch (e) {
       print('Login fails. $e');
+      setState(() {
+        error = '$e';
+      });
+    } finally {
+      setIsLoading();
+    }
+  }
+
+  Future<void> _onNaverLoginButtonTap() async {
+    setIsLoading();
+    try {
+      final NaverLoginResult result = await FlutterNaverLogin.logIn();
+      // NaverAccessToken res = await FlutterNaverLogin.currentAccessToken;
+      final NaverAccountResult res = await FlutterNaverLogin.currentAccount();
+      print(
+        'Succeeded in retrieving Naver user information'
+        '\nService user ID: ${res.id}'
+        '\nEmail: ${res.email}'
+        '\nName: ${res.name}'
+        '\nProfile Thumbnail Image URI: ${res.profileImage}',
+      );
+      // Update the KakaoUser in AppData
+      Provider.of<AppDataChangeNotifier>(context, listen: false)
+          .naverAccountResult = res;
+    } catch (e) {
       setState(() {
         error = '$e';
       });
@@ -352,6 +378,29 @@ class _AuthGateState extends State<AuthGate> {
                                       height: 50,
                                       child: KakaoLoginButton(
                                         onTap: _onKakaoLoginButtonTap,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          // Naver
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 5),
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: isLoading
+                                  ? Container(
+                                      color: Colors.grey[200],
+                                      height: 50,
+                                      width: double.infinity,
+                                    )
+                                  : SizedBox(
+                                      width: double.infinity,
+                                      height: 50,
+                                      child: GestureDetector(
+                                        onTap: _onNaverLoginButtonTap,
+                                        child: Image.asset(
+                                          'assets/images/btnW_완성형.png',
+                                        ),
                                       ),
                                     ),
                             ),

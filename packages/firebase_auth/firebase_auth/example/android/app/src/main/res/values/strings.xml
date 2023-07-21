@@ -2,4 +2,8 @@
 <resources>
     <string name="facebook_app_id">1668977596911004</string>
     <string name="facebook_client_token">a714b6221512492c121dc3d5ca7e2c9b</string>
+
+    <string name="client_id">QQclKx8N3Ja57irQ4TYi</string>
+    <string name="client_secret">bf8n_0MZDF</string>
+    <string name="client_name">test-login-with-flutter</string>
 </resources>

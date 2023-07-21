@@ -4,6 +4,7 @@
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_example/profile_kakao.dart';
+import 'package:firebase_auth_example/profile_naver.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -85,6 +86,8 @@ class AuthExampleApp extends StatelessWidget {
           builder: (context, constraints) {
             final isLoginWithKakao =
                 Provider.of<AppDataChangeNotifier>(context).isLoginWithKakao;
+            final isLoginWithNaver =
+                Provider.of<AppDataChangeNotifier>(context).isLoginWithNaver;
             return Row(
               children: [
                 Visibility(
@@ -113,15 +116,17 @@ class AuthExampleApp extends StatelessWidget {
                       : constraints.maxWidth,
                   child: isLoginWithKakao
                       ? ProfileKakaoPage()
-                      : StreamBuilder<User?>(
-                          stream: auth.authStateChanges(),
-                          builder: (context, snapshot) {
-                            if (snapshot.hasData) {
-                              return const ProfilePage();
-                            }
-                            return const AuthGate();
-                          },
-                        ),
+                      : isLoginWithNaver
+                          ? ProfileNaverPage()
+                          : StreamBuilder<User?>(
+                              stream: auth.authStateChanges(),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData) {
+                                  return const ProfilePage();
+                                }
+                                return const AuthGate();
+                              },
+                            ),
                 ),
               ],
             );
