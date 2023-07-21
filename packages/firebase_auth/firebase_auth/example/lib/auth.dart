@@ -2,6 +2,7 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,9 +15,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:flutter_signin_button/flutter_signin_button.dart';
+import 'package:flutter_web_auth/flutter_web_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
+import 'package:http/http.dart' as http;
 
 import 'kakao_login_button.dart';
 
@@ -25,6 +29,7 @@ typedef OAuthSignIn = void Function();
 // If set to true, the app will request notification permissions to use
 // silent verification for SMS MFA instead of Recaptcha.
 const withSilentVerificationSMSMFA = true;
+const isKakaoSignInWithFirebase = true;
 
 /// Helper class to show a snackbar using the passed context.
 class ScaffoldSnackbar {
@@ -205,10 +210,14 @@ class _AuthGateState extends State<AuthGate> {
   Future<void> _onKakaoLoginButtonTap() async {
     setIsLoading();
     try {
-      OAuthToken? token = await _signInWithKakao();
-      print('token: $token');
-      if (token != null) {
-        await retrieveUserInfo();
+      if (isKakaoSignInWithFirebase) {
+        await _signInWithKakaoFirebase();
+      } else {
+        OAuthToken? token = await _signInWithKakao();
+        print('token: $token');
+        if (token != null) {
+          await retrieveUserInfo();
+        }
       }
     } catch (e) {
       print('Login fails. $e');
@@ -665,6 +674,63 @@ class _AuthGateState extends State<AuthGate> {
           FacebookAuthProvider.credential(result.accessToken!.token);
       // Once signed in, return the UserCredential
       await FirebaseAuth.instance.signInWithCredential(credential);
+    }
+  }
+
+  // https://firebase.google.com/docs/auth/flutter/custom-auth
+  Future<UserCredential?> _signInWithKakaoFirebase() async {
+    try {
+      const client_id = 'b1540cc867505107fa1c27522a9e04da';
+      const redirect_uri =
+          'https://4b59-118-44-27-227.ngrok-free.app/callbacks/kakao/sign_in';
+      const uri_token =
+          'https://4b59-118-44-27-227.ngrok-free.app/callbacks/kakao/token';
+
+      final clientState = const Uuid().v4();
+      final url = Uri.https('kauth.kakao.com', '/oauth/authorize', {
+        'response_type': 'code',
+        'client_id': client_id,
+        'response_mode': 'form_get',
+        'redirect_uri': redirect_uri,
+        'prompt': 'select_account',
+        // 'scope': 'account_email profile_nickname',
+        'state': clientState,
+      });
+
+      final result = await FlutterWebAuth.authenticate(
+        url: url.toString(),
+        callbackUrlScheme: 'webauthcallback',
+      ); //"applink"//"signinwithapple"
+      final body = Uri.parse(result).queryParameters;
+      print(body['code']);
+
+      final tokenUrl = Uri.https('kauth.kakao.com', '/oauth/token', {
+        'grant_type': 'authorization_code',
+        'client_id': client_id,
+        // 'redirect_uri': redirect_uri_token,
+        'redirect_uri': redirect_uri,
+        'code': body['code'],
+      });
+      var responseTokens = await http.post(tokenUrl);
+      Map<String, dynamic> bodys = json.decode(responseTokens.body);
+      var response = await http.post(
+        Uri.parse(uri_token),
+        body: {'accessToken': bodys['access_token']},
+      );
+      // return FirebaseAuth.instance.signInWithCustomToken(response.body);
+      return FirebaseAuth.instance.signInWithCustomToken(response.body);
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'invalid-custom-token':
+          print('The supplied token is not a Firebase custom auth token.');
+          break;
+        case 'custom-token-mismatch':
+          print('The supplied token is for a different Firebase project.');
+          break;
+        default:
+          print('Unkown error.');
+      }
+      return null;
     }
   }
 
