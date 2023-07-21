@@ -700,6 +700,7 @@ class _AuthGateState extends State<AuthGate> {
       final result = await FlutterWebAuth.authenticate(
         url: url.toString(),
         callbackUrlScheme: 'webauthcallback',
+        preferEphemeral: true,
       ); //"applink"//"signinwithapple"
       final body = Uri.parse(result).queryParameters;
       print(body['code']);
