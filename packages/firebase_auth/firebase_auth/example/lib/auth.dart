@@ -2,6 +2,7 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -91,10 +92,10 @@ class _AuthGateState extends State<AuthGate> {
 
   bool isLoading = false;
 
-  void setIsLoading() {
+  void setIsLoading(bool boolean) {
     if (mounted) {
       setState(() {
-        isLoading = !isLoading;
+        isLoading = boolean;
       });
     }
   }
@@ -104,6 +105,7 @@ class _AuthGateState extends State<AuthGate> {
   @override
   void initState() {
     super.initState();
+    setIsLoading(false);
 
     if (withSilentVerificationSMSMFA && !kIsWeb) {
       FirebaseMessaging messaging = FirebaseMessaging.instance;
@@ -209,7 +211,7 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _onKakaoLoginButtonTap() async {
-    setIsLoading();
+    setIsLoading(true);
     try {
       if (isKakaoSignInWithFirebase) {
         await _signInWithKakaoFirebase();
@@ -226,14 +228,27 @@ class _AuthGateState extends State<AuthGate> {
         error = '$e';
       });
     } finally {
-      setIsLoading();
+      setIsLoading(false);
     }
   }
 
   Future<void> _onNaverLoginButtonTap() async {
-    setIsLoading();
+    setIsLoading(true);
     try {
       final NaverLoginResult result = await FlutterNaverLogin.logIn();
+      if (result.status == NaverLoginStatus.error) {
+        if (result.errorMessage.contains('errorCode:user_cancel') == true) {
+          // Handle user cancellation error
+          print('User cancelled the Naver login process.');
+          setIsLoading(false);
+          return;
+        } else {
+          throw Exception(
+            'Naver login failed: '
+            'errorMessage: ${result.errorMessage}',
+          );
+        }
+      }
       // NaverAccessToken res = await FlutterNaverLogin.currentAccessToken;
       final NaverAccountResult res = await FlutterNaverLogin.currentAccount();
       print(
@@ -251,7 +266,7 @@ class _AuthGateState extends State<AuthGate> {
         error = '$e';
       });
     } finally {
-      setIsLoading();
+      setIsLoading(false);
     }
   }
 
@@ -554,7 +569,7 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _anonymousAuth() async {
-    setIsLoading();
+    setIsLoading(true);
 
     try {
       await auth.signInAnonymously();
@@ -567,14 +582,14 @@ class _AuthGateState extends State<AuthGate> {
         error = '$e';
       });
     } finally {
-      setIsLoading();
+      setIsLoading(false);
     }
   }
 
   Future<void> _handleMultiFactorException(
     Future<void> Function() authFunction,
   ) async {
-    setIsLoading();
+    setIsLoading(true);
     try {
       await authFunction();
     } on FirebaseAuthMultiFactorException catch (e) {
@@ -622,7 +637,7 @@ class _AuthGateState extends State<AuthGate> {
         error = '$e';
       });
     }
-    setIsLoading();
+    setIsLoading(false);
   }
 
   Future<void> _emailAndPassword() async {
